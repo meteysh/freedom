@@ -2,6 +2,7 @@ services:
   php:
     image: ${IMAGES_PREFIX:-}app-php
     restart: unless-stopped
+    container_name: php_freedom
     environment:
       SERVER_NAME: ${SERVER_NAME:-localhost}, php:80
       MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
@@ -36,6 +37,14 @@ services:
 # Mercure is installed as a Caddy module, prevent the Flex recipe from installing another service
 ###> symfony/mercure-bundle ###
 ###< symfony/mercure-bundle ###
+
+  redis:
+    image: redis:latest
+    container_name: redis_freedom
+    ports:
+      - "6379:6379"
+    networks:
+      default: null
 
 volumes:
   caddy_data:
