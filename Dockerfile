@@ -31,6 +31,8 @@ RUN set -eux; \
 		intl \
 		opcache \
 		zip \
+		redis \
+		bcmath \
 	;
 
 # https://getcomposer.org/doc/03-cli.md#composer-allow-superuser
@@ -83,6 +85,11 @@ RUN set -eux; \
 # copy sources
 COPY --link . ./
 RUN rm -Rf frankenphp/
+
+RUN set -eux; \
+    install-php-extensions \
+        redis \
+        bcmath \
 
 RUN set -eux; \
 	mkdir -p var/cache var/log; \
