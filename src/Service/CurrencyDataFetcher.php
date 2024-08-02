@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service;
 
-use App\Dto\RateDTO;
 use DateTime;
 use Exception;
 use SimpleXMLElement;
@@ -21,28 +20,26 @@ class CurrencyDataFetcher
     private const int SECONDS_IN_DAY = 86400;
 
     public function __construct(
-        public readonly ClientInterface $redis
+        public readonly ClientInterface $redis,
+        public readonly CalcService $calcService
     ) {
     }
 
     /**
      * @throws  Exception
      */
-    public function fetch(string $currencyCode, string $internalCode, string $baseDay): ?RateDTO
-    {
+    public function fetch(
+        string $currencyCode,
+        string $internalCode,
+        string $baseDay
+    ): array {
         $baseRate = $this->redis->get($baseDay . ':' . $currencyCode);
         $previousRate = $this->redis->get($this->getPreviousDay($baseDay) . ':' . $currencyCode);
 
         if (empty($baseRate) || empty($previousRate)) {
-            $rates = $this->getRateByTwoDaysXml($internalCode, $baseDay);
-            if (empty($rates)) {
-                throw Exception('Error of fetching rates');
-            }
-            $previousRate = $rates[0];
-            $baseRate = $rates[1];
+            return $this->getRateByTwoDaysXml($internalCode, $baseDay);
         }
-
-        return $this->createRateDto($currencyCode, $previousRate, $baseRate);
+        return [$previousRate, $baseRate];
     }
 
     public function fetchByDate(string $date): array
@@ -81,17 +78,6 @@ class CurrencyDataFetcher
         $previousDateTime = (clone $date)->modify('-1 day');
 
         return $previousDateTime->format(self::DATE_FORMAT);
-    }
-
-    private function createRateDto(string $code, string $previousRate, string $baseRate): RateDTO
-    {
-        $delta = $this->getDelta($baseRate, $previousRate);
-        return new RateDTO($code, $baseRate, $delta);
-    }
-
-    private function getDelta(string $baseRate, string $previousRate): string
-    {
-        return bcsub($baseRate, $previousRate, 4);
     }
 
     private function getRateByTwoDaysXml(string $internalCode, string $date): array

@@ -20,6 +20,8 @@ class FetchExchangeRatesCommand extends Command
 {
     private MessageBusInterface $bus;
 
+    private const int DAYS = 180;
+
     public function __construct(
         MessageBusInterface $bus
     ) {
@@ -33,7 +35,7 @@ class FetchExchangeRatesCommand extends Command
         $startDate = clone $today;
         $this->bus->dispatch(new RatesDataMessage($today->format('d/m/Y')));
 
-        for ($i = 2; $i <= 180; $i++) {
+        for ($i = 2; $i <= self::DAYS; $i++) {
             $startDate->modify('-1 day');
             $date = $startDate->format('d/m/Y');
             $this->bus->dispatch(new RatesDataMessage($date));

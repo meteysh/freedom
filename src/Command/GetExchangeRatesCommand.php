@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Service\CalcService;
 use App\Service\CurrencyDataFetcher;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -19,11 +20,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 class GetExchangeRatesCommand extends Command
 {
     private CurrencyDataFetcher $currencyDataFetcher;
+    private CalcService $calcService;
 
-    public function __construct(CurrencyDataFetcher $currencyDataFetcher)
+    public function __construct(CurrencyDataFetcher $currencyDataFetcher, CalcService $calcService)
     {
         parent::__construct();
         $this->currencyDataFetcher = $currencyDataFetcher;
+        $this->calcService = $calcService;
     }
 
     protected function configure(): void
@@ -39,7 +42,7 @@ class GetExchangeRatesCommand extends Command
     {
         $dateString = $input->getArgument('date');
         $currencyCode = strtoupper($input->getArgument('currencyCode'));
-        $baseCurrencyCode = $input->getArgument('baseCurrencyCode');
+        $baseCurrencyCode = strtoupper($input->getArgument('baseCurrencyCode'));
 
         if (!$this->isValidDate($dateString)) {
             $output->writeln('<error>Invalid date format. Please use DD/MM/YYYY.</error>');
@@ -52,27 +55,38 @@ class GetExchangeRatesCommand extends Command
         ]);
 
         $internalCode = $this->currencyDataFetcher->getInternalCodeByISO($currencyCode);
+        $internalCodeBase = $baseCurrencyCode == 'RUR' ? null : $this->currencyDataFetcher->getInternalCodeByISO(
+            $baseCurrencyCode
+        );
 
-        if (!$internalCode) {
+        if (!$internalCode || ($baseCurrencyCode !== 'RUR' && !$internalCodeBase)) {
             $output->writeln("<error>Invalid currency format. Please use ISO code like USD.</error>");
             return Command::INVALID;
         }
 
-        try {
-            $rateDTO = $this->currencyDataFetcher->fetch($currencyCode, $internalCode, $dateString);
-        } catch (\Exception $e) {
-            $output->writeln("<error>{$e->getMessage()}</error>");
-            return Command::INVALID;
-        }
-        if (!$rateDTO) {
-            $output->writeln("<error>Failed to retrieve course data.</error>");
+        $rates = $this->currencyDataFetcher->fetch($currencyCode, $internalCode, $dateString);
+
+        if (!$this->checkRatesBase($rates, $output)) {
             return Command::INVALID;
         }
 
-        $output->writeln('<info>Currency Code:</info> ' . $rateDTO->getCode());
+        $previousRate = $rates[0];
+        $baseRate = $rates[1];
+        if ($baseCurrencyCode !== 'RUR') {
+            $ratesBase = $this->currencyDataFetcher->fetch($baseCurrencyCode, $internalCodeBase, $dateString);
+            if (!$this->checkRatesBase($ratesBase, $output)) {
+                return Command::INVALID;
+            }
+            $previousRate = $this->calcService->calcRateToBase($rates[0], $ratesBase[0]);
+            $baseRate = $this->calcService->calcRateToBase($rates[1], $ratesBase[1]);
+        }
+
+        $delta = $this->calcService->getDelta($baseRate, $previousRate);
+
+        $output->writeln("<info>$currencyCode rate in $baseCurrencyCode</info>");
         $output->writeln('==================');
-        $output->writeln('<info>Rate:</info> ' . $rateDTO->getRate());
-        $output->writeln('<info>Delta:</info> ' . $rateDTO->getDelta());
+        $output->writeln('<info>Rate:</info> ' . $baseRate);
+        $output->writeln('<info>Delta:</info> ' . $delta);
 
         return Command::SUCCESS;
     }
@@ -81,5 +95,14 @@ class GetExchangeRatesCommand extends Command
     {
         $dateTime = \DateTime::createFromFormat('d/m/Y', $date);
         return $dateTime && $dateTime->format('d/m/Y') === $date;
+    }
+
+    private function checkRatesBase($ratesBase, OutputInterface $output): bool
+    {
+        if (empty($ratesBase)) {
+            $output->writeln("<error>Failed to retrieve course data.</error>");
+            return false;
+        }
+        return true;
     }
 }
