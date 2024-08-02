@@ -2,8 +2,8 @@
 
 namespace App\Command;
 
-use App\Service\CalcService;
-use App\Service\CurrencyDataFetcher;
+use App\Service\CalcServiceInterface;
+use App\Service\CurrencyDataFetcherInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -19,10 +19,11 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class GetExchangeRatesCommand extends Command
 {
-    private CurrencyDataFetcher $currencyDataFetcher;
-    private CalcService $calcService;
+    private const string BASE_CURRENCY = 'RUR';
+    private CurrencyDataFetcherInterface $currencyDataFetcher;
+    private CalcServiceInterface $calcService;
 
-    public function __construct(CurrencyDataFetcher $currencyDataFetcher, CalcService $calcService)
+    public function __construct(CurrencyDataFetcherInterface $currencyDataFetcher, CalcServiceInterface $calcService)
     {
         parent::__construct();
         $this->currencyDataFetcher = $currencyDataFetcher;
@@ -34,7 +35,7 @@ class GetExchangeRatesCommand extends Command
         $this
             ->addArgument('date', InputArgument::REQUIRED, 'Date in the format DD/MM/YYYY')
             ->addArgument('currencyCode', InputArgument::REQUIRED, 'Currency code, e.g. USD')
-            ->addArgument('baseCurrencyCode', InputArgument::OPTIONAL, 'Base currency code, e.g. RUB', 'RUR')
+            ->addArgument('baseCurrencyCode', InputArgument::OPTIONAL, 'Base currency code, e.g. RUB', self::BASE_CURRENCY)
         ;
     }
 
@@ -55,11 +56,11 @@ class GetExchangeRatesCommand extends Command
         ]);
 
         $internalCode = $this->currencyDataFetcher->getInternalCodeByISO($currencyCode);
-        $internalCodeBase = $baseCurrencyCode == 'RUR' ? null : $this->currencyDataFetcher->getInternalCodeByISO(
+        $internalCodeBase = $baseCurrencyCode === self::BASE_CURRENCY ? null : $this->currencyDataFetcher->getInternalCodeByISO(
             $baseCurrencyCode
         );
 
-        if (!$internalCode || ($baseCurrencyCode !== 'RUR' && !$internalCodeBase)) {
+        if (!$internalCode || ($baseCurrencyCode !== self::BASE_CURRENCY && !$internalCodeBase)) {
             $output->writeln("<error>Invalid currency format. Please use ISO code like USD.</error>");
             return Command::INVALID;
         }
@@ -72,7 +73,7 @@ class GetExchangeRatesCommand extends Command
 
         $previousRate = $rates[0];
         $baseRate = $rates[1];
-        if ($baseCurrencyCode !== 'RUR') {
+        if ($baseCurrencyCode !== self::BASE_CURRENCY) {
             $ratesBase = $this->currencyDataFetcher->fetch($baseCurrencyCode, $internalCodeBase, $dateString);
             if (!$this->checkRatesBase($ratesBase, $output)) {
                 return Command::INVALID;
@@ -97,7 +98,7 @@ class GetExchangeRatesCommand extends Command
         return $dateTime && $dateTime->format('d/m/Y') === $date;
     }
 
-    private function checkRatesBase($ratesBase, OutputInterface $output): bool
+    private function checkRatesBase(array $ratesBase, OutputInterface $output): bool
     {
         if (empty($ratesBase)) {
             $output->writeln("<error>Failed to retrieve course data.</error>");

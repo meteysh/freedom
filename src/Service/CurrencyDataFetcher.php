@@ -9,7 +9,7 @@ use Exception;
 use SimpleXMLElement;
 use SymfonyBundles\RedisBundle\Redis\ClientInterface;
 
-class CurrencyDataFetcher
+class CurrencyDataFetcher implements CurrencyDataFetcherInterface
 {
     private const string CURRENCY_LIST_URL = 'https://cbr.ru/scripts/XML_valFull.asp';
     private const string CURRENCY_DELTA_URL = 'https://cbr.ru/scripts/XML_dynamic.asp?date_req1=%s&date_req2=%s&VAL_NM_RQ=%s';
@@ -21,7 +21,7 @@ class CurrencyDataFetcher
 
     public function __construct(
         public readonly ClientInterface $redis,
-        public readonly CalcService $calcService
+        public readonly CalcServiceInterface $calcService
     ) {
     }
 

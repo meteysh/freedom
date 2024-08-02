@@ -3,7 +3,7 @@
 namespace App\MessageHandler;
 
 use App\Message\RatesDataMessage;
-use App\Service\CurrencyDataFetcher;
+use App\Service\CurrencyDataFetcherInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use SymfonyBundles\RedisBundle\Redis\ClientInterface;
@@ -13,7 +13,7 @@ readonly class RatesDataMessageHandler
 {
     public function __construct(
         private LoggerInterface $logger,
-        private CurrencyDataFetcher $currencyDataFetcher,
+        private CurrencyDataFetcherInterface $currencyDataFetcher,
         public ClientInterface $redis
     ) {
     }

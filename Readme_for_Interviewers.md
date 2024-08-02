@@ -16,4 +16,6 @@
 
 Для отладки и работы Xdebug запускаем наши команды с указанием переменных окружения как:
 
+`XDEBUG_MODE=debug docker-compose up -d`
+
 `XDEBUG_SESSION=1 PHP_IDE_CONFIG="serverName=symfony" bin/console app:fe-ex-ra`
