@@ -97,3 +97,16 @@ RUN set -eux; \
 	composer dump-env prod; \
 	composer run-script --no-dev post-install-cmd; \
 	chmod +x bin/console; sync;
+
+FROM frankenphp_upstream AS worker
+
+WORKDIR /app
+
+VOLUME /app/var/
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/* \
+    && set -eux; \
+    install-php-extensions \
+        opcache \
+        redis

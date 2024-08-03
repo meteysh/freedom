@@ -41,6 +41,22 @@ services:
     container_name: redis_freedom
     ports:
       - "6379:6379"
+  
+  worker:
+    container_name: worker_freedom
+    build:
+      context: .
+      target: worker
+    command: sh -c  "php bin/console messenger:consume async -vv"
+    volumes:
+      - ./:/app
+    environment:
+      SERVER_NAME: ${SERVER_NAME:-localhost}, php:80
+      MERCURE_PUBLISHER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${CADDY_MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    tty: true
 
 volumes:
   caddy_data:
